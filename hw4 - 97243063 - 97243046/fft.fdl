@@ -1,0 +1,409 @@
+////////////////// region of ipblocks /////////////////////
+ipblock my_arm {
+    iptype "armsystem";
+    ipparm "exec=fft";
+}
+
+ipblock n_out(out data : ns(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000000";
+}
+
+ipblock i_out(out data : ns(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000008";
+}
+
+ipblock j_out(out data : ns(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000010";
+}
+
+ipblock l1_out(out data : ns(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000018";
+}
+
+ipblock c1_out(out data : tc(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000020";
+}
+
+ipblock c1_in(in data : tc(64)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000028";
+}
+
+ipblock c2_out(out data : tc(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000030";
+}
+
+ipblock c2_in(in data : tc(64)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000038";
+}
+
+ipblock u1_out(out data : tc(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000040";
+}
+
+ipblock u2_out(out data : tc(64)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000048";
+}
+
+ipblock swap_req(out data : ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000050";
+}
+
+ipblock swap_ack(in data : ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000054";
+}
+
+ipblock c2_req(out data : ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000058";
+}
+
+ipblock c2_ack(in data : ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x8000005c";
+}
+
+ipblock c1_req(out data : ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000060";
+}
+
+ipblock c1_ack(in data : ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000064";
+}
+
+ipblock in_loop_ack(in data : ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x8000006c";
+}
+
+ipblock scale_req(out data : ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000070";
+}
+
+ipblock scale_ack(in data : ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000074";
+}
+
+ipblock in_ready(out data : ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core    = arm";
+    ipparm "address = 0x80000078";
+}
+
+ipblock done_out(out data : ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core    = arm";
+    ipparm "address = 0x8000007c";
+}
+
+ipblock in_loop_req(in data : ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000068";
+}
+
+/////////////////// end region of ipblocks ///////////////////////
+
+dp fft {
+    reg m, dir : ns(32);
+    reg k, i2, l, l2 : ns(64);
+    reg z : tc(64);
+
+    use my_arm;
+
+    //signals don't have _ in the end 
+    sig i, j, l1: ns(64);
+    sig n : ns(64);
+    sig c1_outp, c1_inp, c2_outp, c2_inp, u1_outp, u2_outp : tc(64);
+    sig input_ready : ns(1);
+    sig swap_req_sig, swap_ack_sig, c2_req_sig, c2_ack_sig, c1_req_sig, c1_ack_sig, in_loop_req_sig, in_loop_ack_sig,
+        scale_req_sig, scale_ack_sig : ns(32);
+    sig done_sig : ns(1);
+
+    
+
+    //use signals (connect to software)
+    use n_out(n);
+    use i_out(i);
+    use j_out(j);
+    use l1_out(l1);
+    
+    use c1_out(c1_outp);
+    use c1_in(c1_inp);
+    use c2_out(c2_outp);
+    use c2_in(c2_inp);
+    use u1_out(u1_outp);
+    use u2_out(u2_outp);
+    use in_ready(input_ready);
+
+    use swap_req(scale_req_sig);
+    use swap_ack(swap_ack_sig);
+    use c2_req(c2_req_sig);
+    use c2_ack(c2_ack_sig);
+    use c1_req(c1_req_sig);
+    use c1_ack(c1_ack_sig);
+    use in_loop_req(in_loop_req_sig);
+    use in_loop_ack(in_loop_ack_sig);
+    use scale_req(scale_req_sig);
+    use scale_ack(scale_ack_sig);
+
+    use done_out(done_sig);
+
+    //all registers have an _ in the end
+    reg i_, j_, l1_: ns(64);
+    reg n_ : ns(64);
+    reg c1_outp_, c1_inp_, c2_outp_, c2_inp_, u1_outp_, u2_outp_ : tc(64);
+    reg input_ready_ : ns(1);
+    reg swap_req_sig_, swap_ack_sig_, c2_req_sig_, c2_ack_sig_, c1_req_sig_, c1_ack_sig_, in_loop_req_sig_, in_loop_ack_sig_,
+        scale_req_sig_, scale_ack_sig_ : ns(32);
+    reg done_sig_ : ns(1);
+
+    //evaluate registers with signals
+    always {
+        i_ = i;
+        j_ = j;
+        l1_ = l1;
+        c1_outp_ = c1_outp;
+        c1_inp_ = c1_inp;
+        c2_outp_ = c2_outp;
+        c2_inp_ = c2_inp;
+        u1_outp_ = u1_outp;
+        u2_outp_ = u2_outp;
+        input_ready_ = input_ready;
+        swap_req_sig_ = swap_req_sig;
+        swap_ack_sig_ = swap_ack_sig;
+        c2_req_sig_ = c2_req_sig;
+        c2_ack_sig_ = c2_ack_sig;
+        c1_req_sig_ = c1_req_sig;
+        c1_ack_sig_ = c1_ack_sig;
+        in_loop_req_sig_ = in_loop_req_sig;
+        in_loop_ack_sig_ = in_loop_ack_sig;
+        scale_req_sig_ = scale_req_sig;
+        scale_ack_sig_ = scale_ack_sig;
+        done_sig_ = done_sig;
+    }
+
+    sfg init {
+        m = 3;
+        dir = 1;
+
+        n = 1;
+        i = 0;
+    }
+
+    // calculate number of points --> 2^m
+    sfg cal_points {
+        n = n * 2;
+        i = i + 1;
+    }
+
+    // we inform software that it's swap time with making swap reg 1 
+    sfg swap {
+        swap_req_sig_ = 1;
+    }
+
+    // shift i2 and init i and j
+    sfg shift {
+        i2 = n >> 1;
+        j = 0;
+        i = 0;
+    }
+
+    // update k value with i2 and inform software to end swappinf with making swap
+    sfg update_k {
+        k = i2;
+        swap_ack_sig_ = 0;
+    }
+
+    // update j with k and plus i for the loop
+    sfg update_j {
+        j = j + k;
+        i = i + 1;
+    }
+
+    // update j with k and shift k
+    sfg update_j_k {
+        j = j - k;
+        k = k >> 1;
+    }
+
+    // init values of c1 and c2 like the main program
+    sfg init_coeffs {
+        c1_outp = -1;
+        c2_outp = 0;
+        l2 = 1;
+        l = 0;
+    }
+
+    // update l1 and l2 and u1 and u2 values
+    sfg update_l_u {
+        l1 = l2;
+        l2 = l2 << 1;
+        u1_outp = 1;
+        u2_outp = 0;
+        j = 0;
+    }
+
+    // evaluate i for the loop
+    sfg evaluate_i {
+        i = j;
+    }
+
+    // inform software to perform c2 updare with making c2 req 1
+    sfg update_c2 {
+        c2_req_sig = 1;
+    }
+
+    // inverse value of c2 by multiplying it to -1
+    sfg inverse_c2 {
+        c2_outp = -1 * c2_outp;
+    }
+
+    // inform software to perform c1 updare with making c1 req 1
+    sfg update_c1 {
+        c2_outp = c1_inp;
+        c1_req_sig = 1;
+        l = l+1;
+    }
+
+    sfg update_c1_to_input {
+        c1_outp = c1_inp;
+    }
+
+    // inform software to perform in loop (line 57 to 63 of main program)
+    sfg in_loop {
+        in_loop_req_sig = 1;
+    }
+
+    // init i for the loop
+    sfg i_0 {
+        i = 0;
+    }
+
+    // inform software to do the scaling by making scale req 1 
+    sfg scale {
+        scale_req_sig = 1;
+        i = i + 1;
+    }
+
+    // update value of z and u according to main program
+    sfg update_z_u {
+        z =  u1_outp * c1_outp - u2_outp * c2_outp;
+        u2_outp = u1_outp * c2_outp + u2_outp * c1_outp;
+        u1_outp = z;
+    }
+
+    sfg skip {
+    // do nothing
+    }
+
+    // set done sig 1 in order to inform software that the program is done
+    sfg done {
+        done_sig = 1;
+    }
+}
+
+fsm fft_ctl(fft) {
+    initial s0;
+    state point1,
+    point2_1, point2_2, point2_3, point2_4, point2_5,
+    point3_1, point3_2, point3_3, point3_4, point3_5, point3_6,
+    point4_1, point4_2, point4_3, end_point,
+    wait_c1_ack, update_c1_to_c1_inp, wait_loop_ack, wait_scale_ack
+    ;
+
+    @s0 if (input_ready_) then (init) -> point1;
+                else (skip) -> s0;
+
+    @point1 if (i_ < m) then (cal_points) -> point1;
+                    else (skip) -> point2_1;
+
+    @point2_1 (shift) -> point2_2;
+
+    @point2_2 if (i_ < n_-1) then (skip) -> point2_3;
+              else (skip) -> point3_1;
+
+    @point2_3 if (i_ < j_) then (swap) -> point2_4;
+              else (skip) -> point2_4;
+
+    @point2_4 if (swap_ack_sig_) then (update_k) -> point2_5;
+                else (skip) -> point2_4;
+
+    @point2_5 if (k <= j_) then (update_j_k) -> point2_5;
+              else (update_j) -> point2_2;
+
+    @point3_1 (init_coeffs) -> point3_2;
+
+    @point3_2 if (l < m) then (update_l_u) -> point3_3;
+             else (skip) -> point4_1;
+
+    @point3_3 if (j_ < l1_) then (evaluate_i) -> point3_4;
+              else (update_c2) -> point3_5;
+
+    @point3_5 if (dir & c2_ack_sig_) then (inverse_c2) -> point3_6;
+              else if (c2_ack_sig_) then (update_c1) -> point3_2;
+              else (skip) -> point3_5;
+
+    @point3_6 (update_c1) -> wait_c1_ack;
+
+    @wait_c1_ack if (c1_ack_sig_) then (skip) -> update_c1_to_c1_inp;
+              else (skip) -> wait_c1_ack;
+          
+    @update_c1_to_c1_inp (update_c1_to_input) -> point3_2;
+          
+    @point3_4 if (i_ < n_) then (in_loop) -> wait_loop_ack;
+              else (update_z_u) -> point3_3;
+          
+    @wait_loop_ack if (in_loop_ack_sig_) then (skip) -> point3_4;
+                    else (skip) -> wait_loop_ack;
+          
+    @point4_1 if (dir == 1) then (i_0) -> point4_2;
+              else (skip) -> end_point;
+          
+    @point4_2 if (i_ < n_) then (scale) -> wait_scale_ack;
+            else (skip) -> end_point;
+          
+    @wait_scale_ack if (scale_ack_sig_) then (skip) -> point4_2;
+                else (skip) -> wait_scale_ack;
+          
+    @end_point (done) -> end_point;
+          
+}
+          
+system S {
+    fft;
+}                

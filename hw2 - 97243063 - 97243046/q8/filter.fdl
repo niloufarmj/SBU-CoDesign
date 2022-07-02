@@ -1,0 +1,46 @@
+dp filter_dp(in a: ns(33); out r: ns(32)) {
+    reg taps0, taps1, taps2, taps3, taps4 : tc(32);
+
+    always {
+        taps4 = a;
+        taps3 = taps4;
+        taps2 = taps3;
+        taps1 = taps2;
+        taps0 = taps1;
+        r = -taps0 + 5*taps1 + 10*taps2 + 5*taps3 - taps4;
+    }
+
+    sfg do_nothing {}
+}
+
+
+fsm filter_ctl (filter_dp) {
+    initial s0;
+
+    @s0 (do_nothing) -> s0;
+}
+
+dp filter_test(out a : tc(32)) {
+
+    sfg run {
+        a = 10 ;
+    }
+}
+
+hardwired h_filter_test(filter_test) {run;}
+
+dp filter_sys {
+    sig a : tc(32);
+    sig finish : ns(1);
+    sig r : tc(32) ;
+    always {
+        $display("cycle = ", $cycle, "         r = ", r);
+    }
+    use filter_dp(a, r);
+    use filter_test(a);
+}
+
+system S {
+    filter_sys;
+}
+

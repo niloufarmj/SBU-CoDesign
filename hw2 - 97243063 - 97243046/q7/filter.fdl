@@ -1,0 +1,95 @@
+dp filter_dp(in a: ns(33); out r_out: ns(32)) {
+    reg taps0, taps1, taps2, taps3, taps4 : tc(32);
+    reg i, r : tc(32);
+    lookup c : tc(32) =  {-1, 5, 10, 5, -1};
+
+    always{
+        r_out = r;
+    }
+
+    sfg init1 {
+        i = 0;
+    }
+    
+    sfg loop1 {
+        taps0 = taps1;
+        taps1 = taps2;
+        taps2 = taps3;
+        taps3 = taps4;
+    }
+
+    sfg init2 {
+        taps4 = a;
+        r = 0;
+        i = 0;
+    }
+
+    sfg op0 { 
+        r = r + taps0 * c(i);
+        i = i+1;
+    }   
+    
+    sfg op1 { 
+        r = r + taps1 * c(i);
+        i = i+1;
+    }   
+    
+    sfg op2 { 
+        r = r + taps2 + c(i);
+        i = i+1;
+    }   
+    
+    sfg op3 { 
+        r = r + taps3 + c(i);
+        i = i+1;
+    }
+    
+    sfg op4 {
+        r = r + taps4 + c(i);
+        i = i+1;
+    }
+
+    sfg do_nothing { }
+    
+}  
+
+ fsm filter_ctl (filter_dp) {
+    initial s0;
+    state s1, s2, s3, s4;
+    
+    @s0 (init1) -> s1;
+    @s1 (loop1) -> s2;
+    @s2 (init2) -> s3;
+    @s3 if (i == 0) then (op0) -> s3;
+        else if (i == 1) then (op1) -> s3;
+        else if (i == 2) then (op2) -> s3;
+        else if (i == 3) then (op3) -> s3;
+        else if (i == 4) then (op4) -> s3;
+        else (do_nothing) -> s4; 
+    @s4 (do_nothing) -> s4;
+}   
+
+dp filter_test(out a : tc(32)) {
+    
+    sfg run {
+        a = 10 ;
+    }   
+}   
+
+hardwired h_filter_test(filter_test) {run;}
+
+dp filter_sys {
+    sig a : tc(32);
+    sig finish : ns(1);
+    sig r : tc(32) ;  
+    always { 
+        $display("cycle = ", $cycle, "         r = ", r);
+    }   
+    use filter_dp(a, r);
+    use filter_test(a);
+}   
+
+system S {
+    filter_sys;
+}
+

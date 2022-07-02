@@ -1,0 +1,187 @@
+ipblock my_arm {
+    iptype "armsystem";
+    ipparm "exec=rsadrive";
+}
+
+ipblock arm_gcd_out(in data: ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000000";
+}
+
+ipblock arm_gcd_strb(in data: ns(1)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000004";
+}
+
+ipblock arm_power_out(in data: ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000008";
+}
+
+ipblock arm_power_strb(in data: ns(1)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x8000000C";
+} 
+
+ipblock arm_point1_out(in data: ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000010";
+}
+
+ipblock arm_point1_strb(in data: ns(1)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000014";
+}
+
+ipblock arm_point2_out(in data: ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000018";
+}
+
+ipblock arm_point2_strb(in data: ns(32)) {
+    iptype "armsystemsink";
+    ipparm "core=my_arm";
+    ipparm "address=0x8000001C";
+}
+
+ipblock arm_e_out(out data: ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000020";
+}
+
+ipblock arm_z_out(out data: ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000024";
+}
+
+ipblock arm_d_out(out data: ns(32)) {
+    iptype "armsystemsource";
+    ipparm "core=my_arm";
+    ipparm "address=0x80000028";
+}
+
+//           this datapath computes gcd of the numbers
+dp gcd(in a: ns(32);
+       in h: ns(32);
+       out d_output: ns(32);
+       out d_output_strb: ns(1)) {
+
+    sig temp: ns(32);
+    reg a_register, h_register, init: ns(32);
+
+    always {
+        a_register = (init == 0) ? a : h_register;
+        h_register = (init == 0) ? (h == 0) ? 1 : h : temp;
+
+        temp = a_register % h_register;
+        d_output = (temp == 0) ? h_register : d_output;
+
+        init = 1;
+    }
+}
+
+//           this datapath computes power of the numbers
+dp power(in a: ns(32);
+         in n: ns(32);
+         out d_output: ns(32);
+         out d_output_strb: ns(1)) {
+
+    reg power, i, d_output_register, init: ns(32);
+
+    always {
+        power = (init == 0) ? a : power * a;
+        i = (init == 0) ? 1 : i + 1;
+
+        d_output_strb = (i < n) ? 0 : 1;
+        d_output_register = (d_output_strb) ? power : d_output_register;
+
+        d_output = d_output_register;
+
+        init = 1;
+    }
+
+}
+
+//           this datapath calculates e according to point one of main program           
+dp point1(in e: ns(32);
+          in z: ns(32);
+          out d_output: ns(32);
+          out d_output_strb: ns(1)) {
+
+    sig gcd_out: ns(32);
+    sig gcd_strb: ns(1);
+    reg e_register, init: ns(32);
+
+    use gcd(e, z, gcd_out, gcd_strb);
+
+    always {
+        e_register = (init == 0) ? e : (gcd_out == 1) ? e_register : e_register + 1;
+        d_output = e_register;
+        d_output_strb = (e_register >= z) ? 1 : (gcd_out == 1) ? 1 : 0;
+        
+        init = 1;
+    }
+
+}
+
+//           this datapath calculates d according to point one of main program           
+dp point2(in d: ns(32);
+          in z: ns(32);
+          in e: ns(32);
+          out d_output: ns(32);
+          out d_output_strb: ns(1)) {
+
+    reg d_register, e_register, init, z_temp: ns(32);
+    sig temp: ns(32);
+
+    always {
+        d_register = (init == 0) ? d : d_register + 1;
+	    e_register = (init == 0) ? e : e_register;
+
+        z_temp = (z == 0) ? 1 : z;
+
+        temp = (d_register * e) % z_temp;
+        d_output_strb = (e_register >= z) ? 1 : (temp == 1) ? 1 : 0;
+        d_output = (d_output_strb) ? d_register : 0;
+
+        init = 1;
+    }
+
+}
+
+//           final hardware interface datapath of program
+dp hardware_interface {
+    sig e, z, d, gcd_out, power_out, point1_out, point2_out: ns(32);
+    sig power_strb, point1_strb, point2_strb, gcd_strb: ns(1);
+
+    use my_arm;
+
+    use arm_gcd_out(gcd_out);
+    use arm_gcd_strb(gcd_strb);
+    use arm_power_out(power_out);
+    use arm_power_strb(power_strb);
+    use arm_point1_out(point1_out);
+    use arm_point1_strb(point1_strb);
+    use arm_point2_out(point2_out);
+    use arm_point2_strb(point2_strb);
+    use arm_e_out(e);
+    use arm_z_out(z);
+    use arm_d_out(d);
+
+    use power(e, z, power_out, power_strb);
+    use point1(e, z, point1_out, point1_strb);
+    use point2(d, z, e, point2_out, point2_strb);
+}
+
+system S {
+    hardware_interface;
+}
